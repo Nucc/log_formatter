@@ -1,6 +1,6 @@
 require 'terminfo'
-#require 'awesome_print'
-
+require 'awesome_print'
+require 'json'
 
 # while !STDIN.eof? do
 #   x = STDIN.readline
@@ -12,7 +12,7 @@ require 'terminfo'
 #   end
 # end
 
-colors = ["31", "32", "33"]
+colors = ["31", "32", "33", "34", "38"]
 
 $semaphore = Mutex.new
 
@@ -24,6 +24,19 @@ def output(path, color, message)
   prefix = "#{colorize(color, '%-15.15s' % path)}" + colorize(color, "| ")
   height, width = TermInfo.screen_size
 
+  if message =~ /\{.*\}/
+      begin
+        m = message.match /.*(\{.*\}).*/
+        m1 = begin
+          eval(m[1]).ai
+        rescue Exception
+          JSON.parse(m[1]).ai
+        end
+        message += m1.split("\n").map { |line| "        #{line}" }.join("\n")
+      rescue Exception => e
+      end
+    end
+
   $semaphore.synchronize do
     message.split("\n").each do |m|
       m.chars.each_slice(width-17) do |chunk|
@@ -32,6 +45,7 @@ def output(path, color, message)
         STDOUT.flush
       end
     end
+
   end
 end
 
@@ -42,7 +56,7 @@ def filters(text)
     return colorize("31", text)
   elsif text =~ /Processing by (.+)? as (.+)?/
     m = text.match /Processing by (.+)? as (.+)?/
-    text = "Processing by #{colorize(36, m[1])} as #{m[2]}"
+    text = "Processing by #{colorize(33, m[1])} as #{m[2]}"
   end
 
   text
