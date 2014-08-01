@@ -12,9 +12,9 @@ require 'terminfo'
 #   end
 # end
 
-$height, $width = TermInfo.screen_size
-
 colors = ["31", "32", "33"]
+
+$semaphore = Mutex.new
 
 def colorize(color_code, text)
   "\e[#{color_code}m#{text}\e[0m"
@@ -22,21 +22,27 @@ end
 
 def output(path, color, message)
   prefix = "#{colorize(color, '%-15.15s' % path)}" + colorize(color, "| ")
+  height, width = TermInfo.screen_size
 
-
-  message.split("\n").each do |m|
-    m.chars.each_slice($width-16) do |chunk|
-      print prefix
-      puts chunk.join
-      STDOUT.flush
+  $semaphore.synchronize do
+    message.split("\n").each do |m|
+      m.chars.each_slice(width-17) do |chunk|
+        print prefix
+        puts chunk.join
+        STDOUT.flush
+      end
     end
   end
 end
 
 def filters(text)
-  if text =~ /Started|Completed/
+  if text =~ /Started|Completed 200/
     return colorize("36", text)
-  elsif text =~ /WARNING/
+  elsif text =~ /Completed (4|5)/
+    return colorize("31", text)
+  elsif text =~ /Processing by (.+)? as (.+)?/
+    m = text.match /Processing by (.+)? as (.+)?/
+    text = "Processing by #{colorize(36, m[1])} as #{m[2]}"
   end
 
   text
